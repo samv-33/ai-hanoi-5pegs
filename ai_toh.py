@@ -11,8 +11,8 @@ pygame.init()
 
 # Constants
 WIDTH, HEIGHT = 1000, 800
-PEG_COUNT = 5
-DISK_COUNT = 5
+PEG_COUNT = 4 # Modify for testing differnt peg counts
+DISK_COUNT = 9 # Modify for testing differnt disk counts
 PEG_WIDTH = 20
 PEG_HEIGHT = 200
 DISK_HEIGHT = 20
@@ -49,7 +49,11 @@ class GameState:
         self.ai_move_delay = 0
         self.ai_solution_found = False
         self.has_won = False
+        self.start_time = None
+        self.elapsed_time = 0
+        self.end_time = None
 
+    # Reset the game state
     def reset_game(self):
         self.pegs = [list(range(DISK_COUNT, 0, -1))] + [[] for _ in range(PEG_COUNT - 1)]
         self.selected_peg = None
@@ -60,11 +64,21 @@ class GameState:
         self.ai_move_delay = 0
         self.ai_solution_found = False
         self.has_won = False
+        self.start_time = None
+        self.elapsed_time = 0
+        self.end_time = None
 
+    # Check if the game is won
     def check_win_condition(self):
         if len(self.pegs[-1]) == DISK_COUNT and all(len(peg) == 0 for peg in self.pegs[:-1]):
-            self.has_won = True
-            self.ai_mode = False # Stop AI mode on win
+            if not self.has_won:
+                self.has_won = True
+                # record the end time if AI mode was active
+                if self.ai_mode and self.start_time is not None:
+                    self.end_time = time.time() - self.start_time
+                    self.elapsed_time = self.end_time
+                    self.start_time = None
+                self.ai_mode = False # Stop AI mode on win
         return self.has_won
 
 game_state = GameState()
@@ -84,26 +98,29 @@ class State:
         return (self.moves + self.heuristic()) < (other.moves + other.heuristic())  
     
     def heuristic(self):
-        # Heuristic: Number of disks not in the last peg
+        # Heuristic: h(n) = Number of disks not in the last peg
         return sum(len(peg) for peg in self.pegs[:-1])
-    
+
+    # Check if the current state is the goal state with all disks on the last peg
     def is_goal(self):
         return len(self.pegs[-1]) == DISK_COUNT and all(len(peg) == 0 for peg in self.pegs[:-1])
     
+    # We did the for loops, and combined it with the if i != j code from Claude AI modifications
     def get_neighbors(self):
         neighbors = []
         for i in range(PEG_COUNT):
             if self.pegs[i]:
                 top_disk = self.pegs[i][-1]
                 for j in range(PEG_COUNT):
-                    if i != j:
+                    if i != j: # Claude AI modification
                         if not self.pegs[j] or self.pegs[j][-1] > top_disk:
                             new_pegs = [peg[:] for peg in self.pegs]
                             new_pegs[i].pop()
                             new_pegs[j].append(top_disk)
-                            neighbors.append(State(new_pegs, self.moves + 1, self, (i, j)))
+                            neighbors.append(State(new_pegs, self.moves + 1, self, (i, j))) # End of Claude AI modification
         return neighbors
-    
+
+# A* search algorithm implementation with reference from https://www.redblobgames.com/pathfinding/a-star/introduction.html A*Search Algorithm
 def a_star_search(initial_pegs):
     initial_state = State(initial_pegs)
     frontier = PriorityQueue()
@@ -162,7 +179,18 @@ def draw_game():
     ai_btn_text = "Stop AI" if game_state.ai_mode else "Start AI"
     draw_button(ai_btn_text, WIDTH - 150, 10, 120, 40, GRAY)
     draw_button("Reset", WIDTH - 150, 60, 120, 40, RED)
-    pygame.display.flip()
+    
+    # Drawing timer for game state on AI mode
+    if game_state.ai_mode and game_state.start_time is not None:
+        current_time = time.time() - game_state.start_time
+        timer_text = font.render(f"AI Time: {current_time:.1f}s", True, BLACK)
+        screen.blit(timer_text, (10, 40))
+    elif game_state.end_time is not None and game_state.has_won:
+        timer_text = font.render(f"AI Time: {game_state.end_time:.1f}s", True, BLACK)
+        screen.blit(timer_text, (10, 40))
+    elif game_state.elapsed_time > 0:
+        timer_text = font.render(f"AI Time: {game_state.elapsed_time:.1f}s", True, BLACK)
+        screen.blit(timer_text, (10, 40))
 
     # Draw win message
     if game_state.has_won:
@@ -216,11 +244,17 @@ def update_game():
             # Check button clicks
             if is_btn_clicked(x, y, WIDTH - 150, 10, 120, 40):
                 game_state.ai_mode = not game_state.ai_mode
-                if game_state.ai_mode and not game_state.ai_solution_found:
-                    game_state.ai_moves = a_star_search(game_state.pegs)
-                    game_state.ai_solution_found = True
-                    game_state.ai_move_counter = 0
-                    game_state.ai_move_delay = 0
+                if game_state.ai_mode:
+                    game_state.start_time = time.time()
+                    if not game_state.ai_solution_found:
+                        game_state.ai_moves = a_star_search(game_state.pegs)
+                        game_state.ai_solution_found = True
+                        game_state.ai_move_counter = 0
+                        game_state.ai_move_delay = 0
+                else:
+                    if game_state.start_time is not None:
+                        game_state.elapsed_time = time.time() - game_state.start_time
+                        game_state.start_time = None
             if is_btn_clicked(x, y, WIDTH - 150, 60, 120, 40):
                 game_state.reset_game()
     return True
@@ -245,6 +279,9 @@ def main_local():
                     game_state.ai_move_delay = 0
                 else:
                     game_state.ai_mode = False
+                    if game_state.start_time is not None:
+                        game_state.elapsed_time = time.time() - game_state.start_time
+                        game_state.start_time = None
         draw_game()
         clock.tick(FPS)
     pygame.quit()
@@ -268,6 +305,9 @@ if platform.system() == "Emscripten":
                         game_state.ai_move_delay = 0
                     else:
                         game_state.ai_mode = False
+                        if game_state.start_time is not None:
+                            game_state.elapsed_time = time.time() - game_state.start_time
+                            game_state.start_time = None
             draw_game()
             await asyncio.sleep(1.0 / FPS)
         pygame.quit()
@@ -275,5 +315,4 @@ if platform.system() == "Emscripten":
 else:
     # If not running in Emscripten, run the local main loop
     main_local()
-
 
