@@ -11,8 +11,8 @@ pygame.init()
 
 # Constants
 WIDTH, HEIGHT = 1000, 800
-PEG_COUNT = 4 # Modify for testing differnt peg counts
-DISK_COUNT = 9 # Modify for testing differnt disk counts
+PEG_COUNT = 5 # Modify for testing differnt peg counts
+DISK_COUNT = 5 # Modify for testing differnt disk counts
 PEG_WIDTH = 20
 PEG_HEIGHT = 200
 DISK_HEIGHT = 20

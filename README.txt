@@ -1,16 +1,10 @@
 # Tower of Hanoi AI Game (5 Pegs)
 
-
 This is an interactive Tower of Hanoi game implemented in Python using Pygame. The game supports 5 pegs (configurable) and includes an AI solver that uses the A* search algorithm to find the optimal solution. Players can either solve the puzzle manually or let the AI solve it automatically.
 
 ## Prerequisites
 
 To run the game, you need Python 3.6 or higher installed on your system. The game relies on the `pygame` library for rendering and user interaction.
-
-## Code Layout **
-- ai_toh.py - File that contains the program with all the drawing functions, A*Search, constants, states, game update function, main
-- LICENSE - General License information
-- README - (This file) which contains all the information and configurations about the game. 
 
 ## Installation
 
